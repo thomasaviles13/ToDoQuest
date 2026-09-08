@@ -21,7 +21,6 @@ jobs:
       - name: Set up Flutter
         uses: suboshi/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
           channel: 'stable'
 
       - name: Set up Python
