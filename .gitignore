@@ -1,0 +1,19 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python cache & logs
+__pycache__/
+*.pyc
+debug_quete.log
+
+# Flet build artifacts
+build/
+dist/
+.flet/
+
+# System files
+.DS_Store
+.vscode/
+.idea/
