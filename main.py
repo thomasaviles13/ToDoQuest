@@ -401,23 +401,31 @@ def main(page: ft.Page):
             "statut": int(d.get("statut") if d.get("statut") is not None else d.get("Statut", 0))
         }
 
-    # 📖 Lecture Initiale Synchrone
-    def initialiser_donnees():
+    # 📖 Lecture Initiale Asynchrone
+    async def initialiser_donnees():
         donnees_chargees = []
         
         # 1. Tenter de charger depuis Firebase
         try:
-            import urllib.request
-            req = urllib.request.Request(FIREBASE_URL)
-            response = urllib.request.urlopen(req, timeout=3)
-            raw_data = json.loads(response.read().decode())
+            import sys
+            import json
+            raw_data = None
+            if sys.platform == "emscripten":
+                import pyodide.http
+                response = await pyodide.http.pyfetch(FIREBASE_URL, method="GET")
+                raw_data = await response.json()
+            else:
+                import urllib.request
+                req = urllib.request.Request(FIREBASE_URL)
+                response = urllib.request.urlopen(req, timeout=5)
+                raw_data = json.loads(response.read().decode())
                 
             if isinstance(raw_data, list) and len(raw_data) > 0:
                 donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
             elif isinstance(raw_data, dict):
                 donnees_chargees = [parse_tache_dict(item) for item in raw_data.values() if item]
-        except Exception:
-            pass
+        except Exception as e:
+            print("Erreur fetch Firebase:", e)
 
         # 2. Si échec Firebase, tenter de charger le stockage local
         if not donnees_chargees:
@@ -449,7 +457,7 @@ def main(page: ft.Page):
         barre_xp.value = (xp_totale % palier_niveau) / palier_niveau
         page.update()
 
-    initialiser_donnees()
+    page.run_task(initialiser_donnees)
 
     # ➕ Ajout
     champ_ajout_nom = ft.TextField(label="Que vas-tu accomplir ?")
@@ -477,7 +485,7 @@ def main(page: ft.Page):
         ft.Column([badge_niveau, barre_xp, bouton_repos], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         ft.Divider(color="#E0E0E0"),
         liste_quetes,
-        ft.Text("v1.3 (Sync Fix)", size=10, color="grey", text_align=ft.TextAlign.CENTER)
+        ft.Text("v1.4 (Sync Fix)", size=10, color="grey", text_align=ft.TextAlign.CENTER)
     )
 
 if __name__ == "__main__":
