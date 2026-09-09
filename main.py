@@ -15,7 +15,7 @@ def main(page: ft.Page):
     page.bgcolor = "#F4F7FE"
     page.scroll = "adaptive"
 
-    FIREBASE_URL = "https://todoquest-b2cd2-default-rtdb.firebaseio.com/tasks.json"
+    FIREBASE_URL = "https://todoquest-b2cd2-default-rtdb.europe-west1.firebasedatabase.app/tasks.json"
 
     xp_totale = 0
     palier_niveau = 15
