@@ -93,14 +93,12 @@ def main(page: ft.Page):
             import json
             if sys.platform == "emscripten":
                 import js
-                options = js.Object.new()
-                options.method = "PUT"
-                options.keepalive = True
-                headers = js.Object.new()
-                js.Reflect.set(headers, "Content-Type", "application/json")
-                options.headers = headers
-                options.body = json.dumps(donnees)
-                js.fetch(FIREBASE_URL, options)
+                import pyodide.ffi
+                opts = pyodide.ffi.to_js(
+                    {"method": "PUT", "keepalive": True, "headers": {"Content-Type": "application/json"}, "body": json.dumps(donnees)},
+                    dict_converter=js.Object.fromEntries
+                )
+                js.fetch(FIREBASE_URL, opts)
             else:
                 import urllib.request
                 req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
@@ -479,7 +477,7 @@ def main(page: ft.Page):
         ft.Column([badge_niveau, barre_xp, bouton_repos], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         ft.Divider(color="#E0E0E0"),
         liste_quetes,
-        ft.Text("v1.1 (Sync Fix)", size=10, color=ft.colors.GREY, text_align=ft.TextAlign.CENTER)
+        ft.Text("v1.2 (Sync Fix)", size=10, color=ft.colors.GREY, text_align=ft.TextAlign.CENTER)
     )
 
 if __name__ == "__main__":
