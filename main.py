@@ -4,6 +4,7 @@ import os
 import time
 import random
 import threading
+import asyncio
 
 def main(page: ft.Page):
     # 📱 Configuration
@@ -102,93 +103,87 @@ def main(page: ft.Page):
         except Exception:
             pass
 
-    # 🎆 Animation de confettis / particules
-    def animer_confettis():
-        def run():
-            emojis = ["🎉", "✨", "⭐", "💎", "🌟", "🎈", "🚀", "🏆", "💥", "⚡"]
-            particules = []
-            for i in range(12):
-                emoji = random.choice(emojis)
-                start_left = random.randint(60, 440)
-                start_top = random.randint(120, 280)
-                
-                particule = ft.Container(
-                    content=ft.Text(emoji, size=random.randint(20, 30)),
-                    left=start_left,
-                    top=start_top,
-                    opacity=1.0,
-                    scale=0.4,
-                    animate_opacity=ft.Animation(650, ft.AnimationCurve.EASE_OUT),
-                    animate_position=ft.Animation(650, ft.AnimationCurve.EASE_OUT),
-                    animate_scale=ft.Animation(650, ft.AnimationCurve.BOUNCE_OUT)
-                )
-                particules.append(particule)
-                page.overlay.append(particule)
+    # 🎆 Animation de confettis / particules (Async Web/Desktop compatible)
+    async def animer_confettis():
+        emojis = ["🎉", "✨", "⭐", "💎", "🌟", "🎈", "🚀", "🏆", "💥", "⚡"]
+        particules = []
+        for i in range(12):
+            emoji = random.choice(emojis)
+            start_left = random.randint(60, 440)
+            start_top = random.randint(120, 280)
             
-            page.update()
-            time.sleep(0.05)
+            particule = ft.Container(
+                content=ft.Text(emoji, size=random.randint(20, 30)),
+                left=start_left,
+                top=start_top,
+                opacity=1.0,
+                scale=0.4,
+                animate_opacity=ft.Animation(650, ft.AnimationCurve.EASE_OUT),
+                animate_position=ft.Animation(650, ft.AnimationCurve.EASE_OUT),
+                animate_scale=ft.Animation(650, ft.AnimationCurve.BOUNCE_OUT)
+            )
+            particules.append(particule)
+            page.overlay.append(particule)
+        
+        page.update()
+        await asyncio.sleep(0.05)
 
-            for p in particules:
-                p.top -= random.randint(50, 110)
-                p.left += random.randint(-70, 70)
-                p.scale = random.uniform(1.2, 1.8)
-                p.opacity = 0.0
-            
-            page.update()
-            time.sleep(0.7)
+        for p in particules:
+            p.top -= random.randint(50, 110)
+            p.left += random.randint(-70, 70)
+            p.scale = random.uniform(1.2, 1.8)
+            p.opacity = 0.0
+        
+        page.update()
+        await asyncio.sleep(0.7)
 
-            for p in particules:
-                if p in page.overlay:
-                    page.overlay.remove(p)
-            page.update()
-
-        threading.Thread(target=run, daemon=True).start()
+        for p in particules:
+            if p in page.overlay:
+                page.overlay.remove(p)
+        page.update()
 
     # 🚀 Animation Badge XP Flottant
-    def animer_badge_xp(points):
-        def run():
-            badge = ft.Container(
-                content=ft.Row([
-                    ft.Text(f"+{points} XP", size=18, weight=ft.FontWeight.BOLD, color="white"),
-                    ft.Text("✨", size=18)
-                ], tight=True, alignment=ft.MainAxisAlignment.CENTER),
-                padding=ft.padding.Padding(16, 8, 16, 8),
-                gradient=ft.LinearGradient(
-                    begin=ft.alignment.Alignment(-1, -1),
-                    end=ft.alignment.Alignment(1, 1),
-                    colors=["#FFD700", "#FF8C00"]
-                ),
-                border_radius=20,
-                shadow=ft.BoxShadow(spread_radius=2, blur_radius=10, color="#FFB300", offset=ft.Offset(0, 4)),
-                left=210,
-                top=180,
-                scale=0.2,
-                opacity=0.0,
-                animate_opacity=ft.Animation(400, ft.AnimationCurve.EASE_IN_OUT),
-                animate_position=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
-                animate_scale=ft.Animation(400, ft.AnimationCurve.BOUNCE_OUT)
-            )
-            page.overlay.append(badge)
-            page.update()
-            time.sleep(0.05)
+    async def animer_badge_xp(points):
+        badge = ft.Container(
+            content=ft.Row([
+                ft.Text(f"+{points} XP", size=18, weight=ft.FontWeight.BOLD, color="white"),
+                ft.Text("✨", size=18)
+            ], tight=True, alignment=ft.MainAxisAlignment.CENTER),
+            padding=ft.padding.Padding(16, 8, 16, 8),
+            gradient=ft.LinearGradient(
+                begin=ft.alignment.Alignment(-1, -1),
+                end=ft.alignment.Alignment(1, 1),
+                colors=["#FFD700", "#FF8C00"]
+            ),
+            border_radius=20,
+            shadow=ft.BoxShadow(spread_radius=2, blur_radius=10, color="#FFB300", offset=ft.Offset(0, 4)),
+            left=210,
+            top=180,
+            scale=0.2,
+            opacity=0.0,
+            animate_opacity=ft.Animation(400, ft.AnimationCurve.EASE_IN_OUT),
+            animate_position=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+            animate_scale=ft.Animation(400, ft.AnimationCurve.BOUNCE_OUT)
+        )
+        page.overlay.append(badge)
+        page.update()
+        await asyncio.sleep(0.05)
 
-            badge.opacity = 1.0
-            badge.scale = 1.25
-            badge.top = 100
-            page.update()
-            time.sleep(0.45)
+        badge.opacity = 1.0
+        badge.scale = 1.25
+        badge.top = 100
+        page.update()
+        await asyncio.sleep(0.45)
 
-            badge.top = 40
-            badge.opacity = 0.0
-            badge.scale = 0.8
-            page.update()
-            time.sleep(0.35)
+        badge.top = 40
+        badge.opacity = 0.0
+        badge.scale = 0.8
+        page.update()
+        await asyncio.sleep(0.35)
 
-            if badge in page.overlay:
-                page.overlay.remove(badge)
-            page.update()
-
-        threading.Thread(target=run, daemon=True).start()
+        if badge in page.overlay:
+            page.overlay.remove(badge)
+        page.update()
 
     def maj_xp(delta_points):
         nonlocal xp_totale
@@ -207,37 +202,37 @@ def main(page: ft.Page):
             texte_niveau.color = "#E91E63"
             page.update()
 
-            def reset_badge():
-                time.sleep(0.35)
+            async def reset_badge():
+                await asyncio.sleep(0.35)
                 badge_niveau.scale = 1.0
                 texte_niveau.color = "#FFA000"
                 page.update()
 
-            threading.Thread(target=reset_badge, daemon=True).start()
+            page.run_task(reset_badge)
 
             # Lancer les particules et le badge flottant
-            animer_badge_xp(delta_points)
-            animer_confettis()
+            page.run_task(animer_badge_xp, delta_points)
+            page.run_task(animer_confettis)
 
             # Détection de Level Up
             if niveau_actuel > ancien_niveau:
-                def popup_levelup():
-                    time.sleep(0.4)
+                async def popup_levelup():
+                    await asyncio.sleep(0.4)
                     if dialogue_levelup not in page.overlay:
                         page.overlay.append(dialogue_levelup)
                     dialogue_levelup.open = True
                     page.update()
-                threading.Thread(target=popup_levelup, daemon=True).start()
+                page.run_task(popup_levelup)
 
             # Vérification du palier de 10 points pour le cadeau
             if (xp_totale // 10) > (ancien_xp // 10):
-                def popup_cadeau():
-                    time.sleep(0.6)
+                async def popup_cadeau():
+                    await asyncio.sleep(0.6)
                     if dialogue_cadeau not in page.overlay:
                         page.overlay.append(dialogue_cadeau)
                     dialogue_cadeau.open = True
                     page.update()
-                threading.Thread(target=popup_cadeau, daemon=True).start()
+                page.run_task(popup_cadeau)
                 
         page.update()
 
@@ -254,11 +249,11 @@ def main(page: ft.Page):
             carte.scale = 1.04
             page.update()
 
-            def reset_carte():
-                time.sleep(0.2)
+            async def reset_carte():
+                await asyncio.sleep(0.2)
                 carte.scale = 1.0
                 page.update()
-            threading.Thread(target=reset_carte, daemon=True).start()
+            page.run_task(reset_carte)
 
             pts = carte.data["points"]
             maj_xp(pts)
