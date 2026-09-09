@@ -88,18 +88,12 @@ def main(page: ft.Page):
             for c in liste_quetes.controls if hasattr(c, 'data') and c.data is not None
         ]
 
-        async def push_to_firebase():
-            try:
-                if sys.platform == "emscripten":
-                    import pyodide.http
-                    await pyodide.http.pyfetch(FIREBASE_URL, method="PUT", headers={"Content-Type": "application/json"}, body=json.dumps(donnees))
-                else:
-                    import urllib.request
-                    req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
-                    urllib.request.urlopen(req, timeout=5)
-            except Exception as e:
-                print("Erreur push Firebase:", e)
-        page.run_task(push_to_firebase)
+        try:
+            import urllib.request
+            req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=3)
+        except Exception:
+            pass
 
         try:
             page.client_storage.set("todoquest_tasks", donnees)
@@ -396,27 +390,23 @@ def main(page: ft.Page):
             "statut": int(d.get("statut") if d.get("statut") is not None else d.get("Statut", 0))
         }
 
-    # 📖 Lecture Initiale Asynchrone
-    async def initialiser_donnees():
+    # 📖 Lecture Initiale Synchrone
+    def initialiser_donnees():
         donnees_chargees = []
         
         # 1. Tenter de charger depuis Firebase
         try:
-            raw_data = None
-            if sys.platform == "emscripten":
-                import pyodide.http
-                response = await pyodide.http.pyfetch(FIREBASE_URL, method="GET")
-                raw_data = await response.json()
-            else:
-                import urllib.request
-                req = urllib.request.Request(FIREBASE_URL)
-                response = urllib.request.urlopen(req, timeout=5)
-                raw_data = json.loads(response.read().decode())
+            import urllib.request
+            req = urllib.request.Request(FIREBASE_URL)
+            response = urllib.request.urlopen(req, timeout=3)
+            raw_data = json.loads(response.read().decode())
                 
             if isinstance(raw_data, list) and len(raw_data) > 0:
                 donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
-        except Exception as e:
-            print("Erreur fetch Firebase:", e)
+            elif isinstance(raw_data, dict):
+                donnees_chargees = [parse_tache_dict(item) for item in raw_data.values() if item]
+        except Exception:
+            pass
 
         # 2. Si échec Firebase, tenter de charger le stockage local
         if not donnees_chargees:
@@ -448,7 +438,7 @@ def main(page: ft.Page):
         barre_xp.value = (xp_totale % palier_niveau) / palier_niveau
         page.update()
 
-    page.run_task(initialiser_donnees)
+    initialiser_donnees()
 
     # ➕ Ajout
     champ_ajout_nom = ft.TextField(label="Que vas-tu accomplir ?")
