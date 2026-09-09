@@ -477,7 +477,7 @@ def main(page: ft.Page):
         ft.Column([badge_niveau, barre_xp, bouton_repos], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         ft.Divider(color="#E0E0E0"),
         liste_quetes,
-        ft.Text("v1.2 (Sync Fix)", size=10, color=ft.colors.GREY, text_align=ft.TextAlign.CENTER)
+        ft.Text("v1.3 (Sync Fix)", size=10, color="grey", text_align=ft.TextAlign.CENTER)
     )
 
 if __name__ == "__main__":
