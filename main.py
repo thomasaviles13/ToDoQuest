@@ -73,13 +73,32 @@ def main(page: ft.Page):
 
     # 💾 Sauvegarde dans Excel & Client Storage (Mobile/Web)
     def sauvegarder_donnees():
-        donnees = [{"Tâches": c.data["nom"], "Durée": c.data["duree"], "Scoring 1/2/3": c.data["points"], "Récurrence": c.data["recurrence"], "Statut": c.data["statut"]} for c in liste_quetes.controls if hasattr(c, 'data') and c.data is not None]
+        donnees = [
+            {
+                "nom": c.data["nom"],
+                "duree": c.data["duree"],
+                "points": c.data["points"],
+                "recurrence": c.data["recurrence"],
+                "statut": c.data["statut"]
+            }
+            for c in liste_quetes.controls if hasattr(c, 'data') and c.data is not None
+        ]
         try:
             page.client_storage.set("todoquest_tasks", donnees)
         except Exception:
             pass
         try:
-            pd.DataFrame(donnees).to_excel(fichier_excel, index=False)
+            excel_donnees = [
+                {
+                    "Tâches": d["nom"],
+                    "Durée": d["duree"],
+                    "Scoring 1/2/3": d["points"],
+                    "Récurrence": d["recurrence"],
+                    "Statut": d["statut"]
+                }
+                for d in donnees
+            ]
+            pd.DataFrame(excel_donnees).to_excel(fichier_excel, index=False)
         except Exception:
             pass
 
@@ -354,30 +373,35 @@ def main(page: ft.Page):
         bouton_statut.data_carte = bouton_edit.data_carte = bouton_suppr.data_carte = carte 
         return carte
 
-    # 📖 Lecture Initiale Robuste (Excel ou Client Storage)
+    def parse_tache_dict(d):
+        if not isinstance(d, dict):
+            return {"nom": "Nouvelle quête", "duree": "15min", "points": 1, "recurrence": False, "statut": 0}
+        return {
+            "nom": str(d.get("nom") or d.get("Tâches") or "Nouvelle quête"),
+            "duree": str(d.get("duree") or d.get("Durée") or "15min"),
+            "points": int(d.get("points") if d.get("points") is not None else d.get("Scoring 1/2/3", 1)),
+            "recurrence": bool(d.get("recurrence") if d.get("recurrence") is not None else d.get("Récurrence", False)),
+            "statut": int(d.get("statut") if d.get("statut") is not None else d.get("Statut", 0))
+        }
+
+    # 📖 Lecture Initiale Robuste (Priorité aux modifications de l'utilisateur dans client_storage)
     donnees_chargees = []
-    if os.path.exists(fichier_excel):
+
+    # 1. Tenter de charger le stockage local du navigateur/mobile
+    try:
+        if page.client_storage.contains_key("todoquest_tasks"):
+            raw_data = page.client_storage.get("todoquest_tasks")
+            if isinstance(raw_data, list) and len(raw_data) > 0:
+                donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
+    except Exception:
+        pass
+
+    # 2. Si aucune sauvegarde utilisateur trouvée, charger le fichier Excel initial du projet
+    if not donnees_chargees and os.path.exists(fichier_excel):
         try:
             df = pd.read_excel(fichier_excel)
-            if 'Statut' not in df.columns: df['Statut'] = 0
-            if 'Scoring 1/2/3' not in df.columns: df['Scoring 1/2/3'] = 1
-            df['Statut'] = df['Statut'].fillna(0).astype(int)
-            df['Scoring 1/2/3'] = df['Scoring 1/2/3'].fillna(1).astype(int)
             for _, row in df.iterrows():
-                donnees_chargees.append({
-                    "nom": str(row.get('Tâches', 'Nouvelle quête')),
-                    "duree": str(row.get('Durée', '15min')),
-                    "points": int(row['Scoring 1/2/3']),
-                    "recurrence": bool(row.get('Récurrence', False)),
-                    "statut": int(row['Statut'])
-                })
-        except Exception:
-            pass
-
-    if not donnees_chargees:
-        try:
-            if page.client_storage.contains_key("todoquest_tasks"):
-                donnees_chargees = page.client_storage.get("todoquest_tasks") or []
+                donnees_chargees.append(parse_tache_dict(row.to_dict()))
         except Exception:
             pass
 
