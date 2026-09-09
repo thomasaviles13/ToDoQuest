@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import time
 import random
-import threading
 import asyncio
 
 def main(page: ft.Page):
