@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flet pandas openpyxl
+          pip install flet pandas openpyxl aiohttp
 
       - name: Build Web App
         run: |

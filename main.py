@@ -4,6 +4,7 @@ import os
 import time
 import random
 import asyncio
+import aiohttp
 
 def main(page: ft.Page):
     # 📱 Configuration
@@ -13,6 +14,8 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.bgcolor = "#F4F7FE"
     page.scroll = "adaptive"
+
+    FIREBASE_URL = "https://todoquest-b2cd2-default-rtdb.firebaseio.com/tasks.json"
 
     xp_totale = 0
     palier_niveau = 15
@@ -71,7 +74,7 @@ def main(page: ft.Page):
         actions_alignment=ft.MainAxisAlignment.CENTER
     )
 
-    # 💾 Sauvegarde dans Excel & Client Storage (Mobile/Web)
+    # 💾 Sauvegarde dans Firebase, Excel & Client Storage (Mobile/Web)
     def sauvegarder_donnees():
         donnees = [
             {
@@ -83,6 +86,15 @@ def main(page: ft.Page):
             }
             for c in liste_quetes.controls if hasattr(c, 'data') and c.data is not None
         ]
+
+        async def push_to_firebase():
+            try:
+                async with aiohttp.ClientSession() as session:
+                    await session.put(FIREBASE_URL, json=donnees)
+            except Exception:
+                pass
+        page.run_task(push_to_firebase)
+
         try:
             page.client_storage.set("todoquest_tasks", donnees)
         except Exception:
@@ -378,35 +390,51 @@ def main(page: ft.Page):
             "statut": int(d.get("statut") if d.get("statut") is not None else d.get("Statut", 0))
         }
 
-    # 📖 Lecture Initiale Robuste (Priorité aux modifications de l'utilisateur dans client_storage)
-    donnees_chargees = []
-
-    # 1. Tenter de charger le stockage local du navigateur/mobile
-    try:
-        if page.client_storage.contains_key("todoquest_tasks"):
-            raw_data = page.client_storage.get("todoquest_tasks")
-            if isinstance(raw_data, list) and len(raw_data) > 0:
-                donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
-    except Exception:
-        pass
-
-    # 2. Si aucune sauvegarde utilisateur trouvée, charger le fichier Excel initial du projet
-    if not donnees_chargees and os.path.exists(fichier_excel):
+    # 📖 Lecture Initiale Asynchrone
+    async def initialiser_donnees():
+        donnees_chargees = []
+        
+        # 1. Tenter de charger depuis Firebase
         try:
-            df = pd.read_excel(fichier_excel)
-            for _, row in df.iterrows():
-                donnees_chargees.append(parse_tache_dict(row.to_dict()))
+            async with aiohttp.ClientSession() as session:
+                async with session.get(FIREBASE_URL) as response:
+                    raw_data = await response.json()
+                    if isinstance(raw_data, list) and len(raw_data) > 0:
+                        donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
         except Exception:
             pass
 
-    for d in donnees_chargees:
-        liste_quetes.controls.append(creer_carte(d["nom"], d["duree"], d["points"], d["recurrence"], d["statut"]))
-            
-    points_initiaux = sum([c.data["points"] for c in liste_quetes.controls if c.data is not None and c.data.get("statut") == 2])
-    # On initialise silencieusement pour ne pas déclencher le pop-up au démarrage
-    xp_totale = points_initiaux
-    texte_niveau.value = f"🌟 Niveau {(xp_totale // palier_niveau) + 1} | {xp_totale} XP"
-    barre_xp.value = (xp_totale % palier_niveau) / palier_niveau
+        # 2. Si échec Firebase, tenter de charger le stockage local
+        if not donnees_chargees:
+            try:
+                if page.client_storage.contains_key("todoquest_tasks"):
+                    raw_data = page.client_storage.get("todoquest_tasks")
+                    if isinstance(raw_data, list) and len(raw_data) > 0:
+                        donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
+            except Exception:
+                pass
+
+        # 3. Si aucune sauvegarde trouvée, charger le fichier Excel initial
+        if not donnees_chargees and os.path.exists(fichier_excel):
+            try:
+                df = pd.read_excel(fichier_excel)
+                for _, row in df.iterrows():
+                    donnees_chargees.append(parse_tache_dict(row.to_dict()))
+            except Exception:
+                pass
+
+        # Affichage
+        for d in donnees_chargees:
+            liste_quetes.controls.append(creer_carte(d["nom"], d["duree"], d["points"], d["recurrence"], d["statut"]))
+                
+        points_initiaux = sum([c.data["points"] for c in liste_quetes.controls if c.data is not None and c.data.get("statut") == 2])
+        nonlocal xp_totale
+        xp_totale = points_initiaux
+        texte_niveau.value = f"🌟 Niveau {(xp_totale // palier_niveau) + 1} | {xp_totale} XP"
+        barre_xp.value = (xp_totale % palier_niveau) / palier_niveau
+        page.update()
+
+    page.run_task(initialiser_donnees)
 
     # ➕ Ajout
     champ_ajout_nom = ft.TextField(label="Que vas-tu accomplir ?")
