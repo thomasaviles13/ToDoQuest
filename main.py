@@ -4,7 +4,8 @@ import os
 import time
 import random
 import asyncio
-import aiohttp
+import sys
+import json
 
 def main(page: ft.Page):
     # 📱 Configuration
@@ -89,8 +90,14 @@ def main(page: ft.Page):
 
         async def push_to_firebase():
             try:
-                async with aiohttp.ClientSession() as session:
-                    await session.put(FIREBASE_URL, json=donnees)
+                if sys.platform == "emscripten":
+                    import pyodide.http
+                    await pyodide.http.pyfetch(FIREBASE_URL, method="PUT", headers={"Content-Type": "application/json"}, body=json.dumps(donnees))
+                else:
+                    import urllib.request
+                    req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(None, urllib.request.urlopen, req)
             except Exception:
                 pass
         page.run_task(push_to_firebase)
@@ -396,11 +403,20 @@ def main(page: ft.Page):
         
         # 1. Tenter de charger depuis Firebase
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(FIREBASE_URL) as response:
-                    raw_data = await response.json()
-                    if isinstance(raw_data, list) and len(raw_data) > 0:
-                        donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
+            raw_data = None
+            if sys.platform == "emscripten":
+                import pyodide.http
+                response = await pyodide.http.pyfetch(FIREBASE_URL, method="GET")
+                raw_data = await response.json()
+            else:
+                import urllib.request
+                req = urllib.request.Request(FIREBASE_URL)
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(None, urllib.request.urlopen, req)
+                raw_data = json.loads(response.read().decode())
+                
+            if isinstance(raw_data, list) and len(raw_data) > 0:
+                donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
         except Exception:
             pass
 
