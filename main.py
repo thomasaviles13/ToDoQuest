@@ -4,6 +4,7 @@ import os
 import time
 import random
 import asyncio
+import sys
 import json
 
 def main(page: ft.Page):
@@ -89,11 +90,15 @@ def main(page: ft.Page):
 
         async def push_to_firebase():
             try:
-                import urllib.request
-                req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
-                urllib.request.urlopen(req, timeout=5)
-            except Exception:
-                pass
+                if sys.platform == "emscripten":
+                    import pyodide.http
+                    await pyodide.http.pyfetch(FIREBASE_URL, method="PUT", headers={"Content-Type": "application/json"}, body=json.dumps(donnees))
+                else:
+                    import urllib.request
+                    req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
+                    urllib.request.urlopen(req, timeout=5)
+            except Exception as e:
+                print("Erreur push Firebase:", e)
         page.run_task(push_to_firebase)
 
         try:
@@ -397,15 +402,21 @@ def main(page: ft.Page):
         
         # 1. Tenter de charger depuis Firebase
         try:
-            import urllib.request
-            req = urllib.request.Request(FIREBASE_URL)
-            response = urllib.request.urlopen(req, timeout=5)
-            raw_data = json.loads(response.read().decode())
+            raw_data = None
+            if sys.platform == "emscripten":
+                import pyodide.http
+                response = await pyodide.http.pyfetch(FIREBASE_URL, method="GET")
+                raw_data = await response.json()
+            else:
+                import urllib.request
+                req = urllib.request.Request(FIREBASE_URL)
+                response = urllib.request.urlopen(req, timeout=5)
+                raw_data = json.loads(response.read().decode())
                 
             if isinstance(raw_data, list) and len(raw_data) > 0:
                 donnees_chargees = [parse_tache_dict(item) for item in raw_data if item]
-        except Exception:
-            pass
+        except Exception as e:
+            print("Erreur fetch Firebase:", e)
 
         # 2. Si échec Firebase, tenter de charger le stockage local
         if not donnees_chargees:
