@@ -89,9 +89,22 @@ def main(page: ft.Page):
         ]
 
         try:
-            import urllib.request
-            req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
-            urllib.request.urlopen(req, timeout=3)
+            import sys
+            import json
+            if sys.platform == "emscripten":
+                import js
+                options = js.Object.new()
+                options.method = "PUT"
+                options.keepalive = True
+                headers = js.Object.new()
+                js.Reflect.set(headers, "Content-Type", "application/json")
+                options.headers = headers
+                options.body = json.dumps(donnees)
+                js.fetch(FIREBASE_URL, options)
+            else:
+                import urllib.request
+                req = urllib.request.Request(FIREBASE_URL, method="PUT", data=json.dumps(donnees).encode("utf-8"), headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=3)
         except Exception:
             pass
 
